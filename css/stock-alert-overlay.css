@@ -1,0 +1,119 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: transparent;
+  overflow: hidden;
+}
+
+#alerts-container {
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  width: 350px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.alert {
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 5px;
+  color: white;
+  padding: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  animation: slideIn 0.3s ease-out forwards, fadeOut 0.3s ease-in 5s forwards;
+  transform: translateX(120%);
+  border-left: 5px solid transparent;
+}
+
+@keyframes slideIn {
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+/* Purchase alert style */
+.alert.purchase {
+  border-left-color: var(--buy-color, #00ff7f);
+}
+
+/* Sale alert style */
+.alert.sale {
+  border-left-color: var(--sell-color, #ff4757);
+}
+
+.avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  margin-right: 12px;
+  object-fit: cover;
+}
+
+.message {
+  flex: 1;
+}
+
+.username {
+  font-weight: bold;
+  color: #9147ff;
+  margin-bottom: 4px;
+  font-size: 16px;
+}
+
+.action {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.quantity {
+  font-weight: bold;
+}
+
+.purchase .quantity {
+  color: var(--buy-color, #00ff7f);
+}
+
+.sale .quantity {
+  color: var(--sell-color, #ff4757);
+}
+
+.ticker {
+  font-weight: bold;
+  color: #9147ff;
+}
+
+.value {
+  font-weight: bold;
+  color: gold;
+}
+
+.transaction-type {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-right: 5px;
+}
+
+.purchase .transaction-type {
+  background: rgba(0, 255, 127, 0.2);
+  color: var(--buy-color, #00ff7f);
+}
+
+.sale .transaction-type {
+  background: rgba(255, 71, 87, 0.2);
+  color: var(--sell-color, #ff4757);
+}

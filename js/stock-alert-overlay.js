@@ -39,42 +39,43 @@ async function checkForNewTransactions() {
     );
     const data = await response.json();
 
-    if (data.data && data.data.length > 0) {
+    // Check if data is an array (direct response) or has a data property
+    const transactions = Array.isArray(data) ? data : (data.data || []);
+
+    if (transactions.length > 0) {
       // On first load, process the most recent transactions first
       if (isInitialLoad) {
         isInitialLoad = false;
-        const recentTransactions = data.data
+        const recentTransactions = transactions
           .slice(0, config.initialLoadCount)
-          .filter(
-            (tx) =>
-              (tx.action === 0 && config.showPurchases) ||
-              (tx.action === 1 && config.showSales)
+          .filter(tx => 
+            (tx.action.toLowerCase() === "buy" && config.showPurchases) ||
+            (tx.action.toLowerCase() === "sell" && config.showSales)
           );
 
-        recentTransactions.reverse().forEach((tx) => {
-          alertQueue.push(tx);
-        });
-
-        // Set last processed to the newest transaction
-        lastProcessedId = Math.max(...data.data.map((tx) => tx.id));
+        if (recentTransactions.length > 0) {
+          recentTransactions.reverse().forEach(tx => {
+            alertQueue.push(tx);
+          });
+          lastProcessedId = Math.max(...recentTransactions.map(tx => tx.id));
+        } else {
+          lastProcessedId = 0;
+        }
       }
       // On subsequent checks, look for new transactions
       else {
-        const newTransactions = data.data.filter(
-          (tx) =>
-            tx.id > lastProcessedId &&
-            ((tx.action === 0 && config.showPurchases) ||
-              (tx.action === 1 && config.showSales))
+        const newTransactions = transactions.filter(tx => 
+          tx.id > lastProcessedId &&
+          ((tx.action.toLowerCase() === "buy" && config.showPurchases) ||
+           (tx.action.toLowerCase() === "sell" && config.showSales))
         );
 
         if (newTransactions.length > 0) {
           // Add new transactions to queue (newest first)
-          newTransactions.reverse().forEach((tx) => {
+          newTransactions.reverse().forEach(tx => {
             alertQueue.push(tx);
           });
-
-          // Update last processed ID
-          lastProcessedId = Math.max(...newTransactions.map((tx) => tx.id));
+          lastProcessedId = Math.max(...newTransactions.map(tx => tx.id));
         }
       }
 
@@ -87,6 +88,7 @@ async function checkForNewTransactions() {
   // Schedule next check
   setTimeout(checkForNewTransactions, 10000);
 }
+
 
 function processQueue() {
   if (isProcessingQueue || alertQueue.length === 0) return;
@@ -114,43 +116,44 @@ function processQueue() {
 }
 
 function showTransactionAlert(transaction) {
-  const isPurchase = transaction.action === 0;
-  const actionText = isPurchase ? "BUY" : "SELL";
+  // Normalize the action to lowercase for comparison
+  const action = transaction.action.toLowerCase();
+  const isPurchase = action === "buy";
+  const actionText = isPurchase ? "Buy" : "Sell";
   const alertClass = isPurchase ? "purchase" : "sale";
   const actionVerb = isPurchase ? "bought" : "sold";
+
+  // Create avatar URL with fallback
+  const avatarUrl = transaction.user?.avatar_url || 
+                   'https://static-cdn.jtvnw.net/user-default-pictures-uv/cdd517fe-def4-11e9-948e-784f43822e80-profile_image-70x70.png';
 
   const alertDiv = document.createElement("div");
   alertDiv.className = `alert ${alertClass}`;
 
   alertDiv.innerHTML = `
-                <img src="${transaction.user.avatar_url}" class="avatar" 
-                     onerror="this.src='https://static-cdn.jtvnw.net/user-default-pictures-uv/cdd517fe-def4-11e9-948e-784f43822e80-profile_image-70x70.png'">
-                <div class="message">
-                    <div class="username">${transaction.user.name}</div>
-                    <div class="action">
-                        <span class="transaction-type">${actionText}</span>
-                        ${actionVerb} <span class="quantity">${transaction.quantity}</span> 
-                        shares of <span class="ticker">${config.ticker}</span> 
-                        at <span class="value">$${transaction.value}</span> each
-                    </div>
-                </div>
-            `;
+    <img src="${avatarUrl}" class="avatar" 
+         onerror="this.src='https://static-cdn.jtvnw.net/user-default-pictures-uv/cdd517fe-def4-11e9-948e-784f43822e80-profile_image-70x70.png'">
+    <div class="message">
+      <div class="username">${transaction.user?.name || 'Unknown'}</div>
+      <div class="action">
+        <span class="transaction-type">${actionText}</span>
+        ${actionVerb} <span class="quantity">${transaction.quantity}</span> 
+        shares of <span class="ticker">${config.ticker}</span> 
+        at <span class="value">$${transaction.value}</span> each
+      </div>
+    </div>
+  `;
 
   // Add to container
   alertsContainer.appendChild(alertDiv);
 
-  // Remove alert after animation completes
+  // Remove alert after display time
   setTimeout(() => {
-    alertDiv.addEventListener(
-      "animationend",
-      () => {
-        if (alertDiv.parentNode) {
-          alertDiv.parentNode.removeChild(alertDiv);
-        }
-      },
-      { once: true }
-    );
-  }, 3000);
+    alertDiv.classList.add('fade-out');
+    alertDiv.addEventListener('animationend', () => {
+      alertDiv.remove();
+    }, { once: true });
+  }, config.displayTime);
 }
 
 // Start checking for transactions

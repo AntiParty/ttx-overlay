@@ -1,7 +1,7 @@
 // Get parameters from URL
 const urlParams = new URLSearchParams(window.location.search);
 
-// Configuration with defaults
+
 const config = {
   creatorSlug: urlParams.get("creator") || "antiparty",
   ticker: urlParams.get("ticker") || "ANTI",
@@ -15,18 +15,15 @@ const config = {
   sellColor: "#" + (urlParams.get("sellColor") || "ff4757"),
 };
 
-// Set CSS variables for colors
 document.documentElement.style.setProperty("--buy-color", config.buyColor);
 document.documentElement.style.setProperty("--sell-color", config.sellColor);
 
-// Position alerts container
 const alertsContainer = document.getElementById("alerts-container");
 if (config.position === "bottom") {
   alertsContainer.style.top = "auto";
   alertsContainer.style.bottom = "20px";
 }
 
-// State management
 let lastProcessedId = 0;
 let isInitialLoad = true;
 let alertQueue = [];
@@ -39,43 +36,37 @@ async function checkForNewTransactions() {
     );
     const data = await response.json();
 
-    // Check if data is an array (direct response) or has a data property
-    const transactions = Array.isArray(data) ? data : (data.data || []);
-
-    if (transactions.length > 0) {
-      // On first load, process the most recent transactions first
+    if (data && data.length > 0) {
       if (isInitialLoad) {
         isInitialLoad = false;
-        const recentTransactions = transactions
+        const recentTransactions = data
           .slice(0, config.initialLoadCount)
-          .filter(tx => 
-            (tx.action.toLowerCase() === "buy" && config.showPurchases) ||
-            (tx.action.toLowerCase() === "sell" && config.showSales)
+          .filter(
+            (tx) =>
+              (tx.action === "Buy" && config.showPurchases) ||
+              (tx.action === "Sell" && config.showSales)
           );
 
-        if (recentTransactions.length > 0) {
-          recentTransactions.reverse().forEach(tx => {
-            alertQueue.push(tx);
-          });
-          lastProcessedId = Math.max(...recentTransactions.map(tx => tx.id));
-        } else {
-          lastProcessedId = 0;
-        }
+        recentTransactions.reverse().forEach((tx) => {
+          alertQueue.push(tx);
+        });
+
+        lastProcessedId = Math.max(...data.map((tx) => tx.id));
       }
-      // On subsequent checks, look for new transactions
       else {
-        const newTransactions = transactions.filter(tx => 
-          tx.id > lastProcessedId &&
-          ((tx.action.toLowerCase() === "buy" && config.showPurchases) ||
-           (tx.action.toLowerCase() === "sell" && config.showSales))
+        const newTransactions = data.filter(
+          (tx) =>
+            tx.id > lastProcessedId &&
+            ((tx.action === "Buy" && config.showPurchases) ||
+              (tx.action === "Sell" && config.showSales))
         );
 
         if (newTransactions.length > 0) {
-          // Add new transactions to queue (newest first)
-          newTransactions.reverse().forEach(tx => {
+          newTransactions.reverse().forEach((tx) => {
             alertQueue.push(tx);
           });
-          lastProcessedId = Math.max(...newTransactions.map(tx => tx.id));
+
+          lastProcessedId = Math.max(...newTransactions.map((tx) => tx.id));
         }
       }
 
@@ -85,10 +76,8 @@ async function checkForNewTransactions() {
     console.error("Error checking transactions:", error);
   }
 
-  // Schedule next check
   setTimeout(checkForNewTransactions, 10000);
 }
-
 
 function processQueue() {
   if (isProcessingQueue || alertQueue.length === 0) return;
@@ -96,18 +85,15 @@ function processQueue() {
   isProcessingQueue = true;
   const activeAlerts = document.querySelectorAll(".alert");
 
-  // If we have space for more alerts
   if (activeAlerts.length < config.maxAlerts) {
     const transaction = alertQueue.shift();
     showTransactionAlert(transaction);
-
-    // Process next alert after a short delay
+y
     setTimeout(() => {
       isProcessingQueue = false;
       processQueue();
     }, 300);
   } else {
-    // Try again after current alerts start disappearing
     setTimeout(() => {
       isProcessingQueue = false;
       processQueue();
@@ -116,45 +102,43 @@ function processQueue() {
 }
 
 function showTransactionAlert(transaction) {
-  // Normalize the action to lowercase for comparison
-  const action = transaction.action.toLowerCase();
-  const isPurchase = action === "buy";
-  const actionText = isPurchase ? "Buy" : "Sell";
+  const isPurchase = transaction.action === "Buy";
+  const actionText = isPurchase ? "BUY" : "SELL";
   const alertClass = isPurchase ? "purchase" : "sale";
   const actionVerb = isPurchase ? "bought" : "sold";
-
-  // Create avatar URL with fallback
-  const avatarUrl = transaction.user?.avatar_url || 
-                   'https://static-cdn.jtvnw.net/user-default-pictures-uv/cdd517fe-def4-11e9-948e-784f43822e80-profile_image-70x70.png';
 
   const alertDiv = document.createElement("div");
   alertDiv.className = `alert ${alertClass}`;
 
   alertDiv.innerHTML = `
-    <img src="${avatarUrl}" class="avatar" 
+    <img src="${transaction.user.avatar_url}" class="avatar" 
          onerror="this.src='https://static-cdn.jtvnw.net/user-default-pictures-uv/cdd517fe-def4-11e9-948e-784f43822e80-profile_image-70x70.png'">
     <div class="message">
-      <div class="username">${transaction.user?.name || 'Unknown'}</div>
-      <div class="action">
-        <span class="transaction-type">${actionText}</span>
-        ${actionVerb} <span class="quantity">${transaction.quantity}</span> 
-        shares of <span class="ticker">${config.ticker}</span> 
-        at <span class="value">$${transaction.value}</span> each
-      </div>
+        <div class="username">${transaction.user.name}</div>
+        <div class="action">
+            <span class="transaction-type">${actionText}</span>
+            ${actionVerb} <span class="quantity">${transaction.quantity}</span> 
+            shares of <span class="ticker">${config.ticker}</span> 
+            at <span class="value">$${transaction.value}</span> each
+        </div>
     </div>
   `;
 
-  // Add to container
   alertsContainer.appendChild(alertDiv);
 
-  // Remove alert after display time
+
   setTimeout(() => {
-    alertDiv.classList.add('fade-out');
-    alertDiv.addEventListener('animationend', () => {
-      alertDiv.remove();
-    }, { once: true });
-  }, config.displayTime);
+    alertDiv.addEventListener(
+      "animationend",
+      () => {
+        if (alertDiv.parentNode) {
+          alertDiv.parentNode.removeChild(alertDiv);
+        }
+      },
+      { once: true }
+    );
+  }, 3000);
 }
 
-// Start checking for transactions
+
 checkForNewTransactions();
